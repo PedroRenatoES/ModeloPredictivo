@@ -9,7 +9,7 @@ def load_data(path=RAW_DATA_PATH):
     df = df.sort_values("time").reset_index(drop=True)
     return df
 
-def process_data(df):
+def process_data(df, is_training=True):
     """Applies cleaning and feature engineering."""
     print("Processing data...")
     
@@ -44,14 +44,16 @@ def process_data(df):
     df["pm2_5_rolling_mean_24"] = df["pm2_5"].shift(1).rolling(window=24).mean()
     df["pm2_5_rolling_std_24"] = df["pm2_5"].shift(1).rolling(window=24).std()
     
-    # 6. Multi-Horizon Targets
-    # We want to predict pm2_5 at t+h. 
-    # So we create columns 'target_{h}h' which are the pm2_5 values shifted BACKWARDS by h.
-    from src.config import HORIZONS
-    for h in HORIZONS:
-        df[f"target_{h}h"] = df["pm2_5"].shift(-h)
+    # 6. Multi-Horizon Targets (ONLY FOR TRAINING)
+    if is_training:
+        from src.config import HORIZONS
+        for h in HORIZONS:
+            df[f"target_{h}h"] = df["pm2_5"].shift(-h)
 
-    # Drop rows with NaNs (both from lags at the start and targets at the end)
+    # Drop rows with NaNs
+    # If training, this drops rows without targets (end) and without lags (start).
+    # If inference, this drops rows without lags (start), but KEEPS the end (current time) 
+    # because we didn't create the NaN target columns.
     df = df.dropna().reset_index(drop=True)
     
     print(f"Data processed. Shape: {df.shape}")

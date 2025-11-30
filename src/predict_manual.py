@@ -21,23 +21,24 @@ def load_models():
             models[h] = model
     return models
 
-def predict_manual(current_data):
+def predict_manual(current_data, history_df=None):
     """
     current_data: dict containing:
         - time (str or datetime)
         - pm2_5
-        - nitrogen_dioxide
-        - ozone
-        - temperature_2m
-        - relative_humidity_2m
-        - wind_speed_10m
-        - wind_direction_10m
-        - precipitation
-        - surface_pressure
+        - ...
+    history_df: Optional pd.DataFrame containing historical data.
+                If None, loads from RAW_DATA_PATH.
     """
-    print("Loading historical data for context...")
-    # Load raw data to get history
-    df_history = pd.read_csv(RAW_DATA_PATH, parse_dates=["time"])
+    if history_df is None:
+        print("Loading historical data for context...")
+        # Load raw data to get history
+        df_history = pd.read_csv(RAW_DATA_PATH, parse_dates=["time"])
+    else:
+        print("Using provided historical data...")
+        df_history = history_df.copy()
+        if "time" in df_history.columns:
+            df_history["time"] = pd.to_datetime(df_history["time"])
     
     # Create DataFrame from input
     input_df = pd.DataFrame([current_data])

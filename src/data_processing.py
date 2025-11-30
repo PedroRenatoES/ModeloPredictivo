@@ -41,20 +41,24 @@ def process_data(df, is_training=True):
     # 5. Rolling Statistics
     # Rolling mean/std of the last 24 hours (excluding current)
     # shift(1) ensures we don't use current value in the rolling window calculation for the current step
-    df["pm2_5_rolling_mean_24"] = df["pm2_5"].shift(1).rolling(window=24).mean()
-    df["pm2_5_rolling_std_24"] = df["pm2_5"].shift(1).rolling(window=24).std()
+    # min_periods=1 allows calculating mean even with partial history
+    df["pm2_5_rolling_mean_24"] = df["pm2_5"].shift(1).rolling(window=24, min_periods=1).mean()
+    df["pm2_5_rolling_std_24"] = df["pm2_5"].shift(1).rolling(window=24, min_periods=1).std()
     
     # 6. Multi-Horizon Targets (ONLY FOR TRAINING)
     if is_training:
         from src.config import HORIZONS
         for h in HORIZONS:
             df[f"target_{h}h"] = df["pm2_5"].shift(-h)
-
-    # Drop rows with NaNs
-    # If training, this drops rows without targets (end) and without lags (start).
-    # If inference, this drops rows without lags (start), but KEEPS the end (current time) 
-    # because we didn't create the NaN target columns.
-    df = df.dropna().reset_index(drop=True)
+        
+        # For training, we MUST drop NaNs to have clean targets/features
+        df = df.dropna().reset_index(drop=True)
+    else:
+        # For inference, we try to fill NaNs to allow prediction with short history
+        # First, fill lags that might be NaN (e.g. lag_24 if we only have 5h of data)
+        # We fill with the oldest available value (bfill) or newest (ffill)
+        df = df.bfill().ffill()
+        # Do NOT drop rows, so we keep the "current" row even if it was imperfect
     
     print(f"Data processed. Shape: {df.shape}")
     return df

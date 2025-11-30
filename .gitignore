@@ -10,3 +10,6 @@ venv/
 
 # VS Code
 .vscode/
+
+# Model
+models/

@@ -3,10 +3,16 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
+dist/
+build/
 
 # Virtual environment
 .venv/
+venv/
+env/
 .env/
+ENV/
 
 # VS Code
 .vscode/

@@ -3,7 +3,8 @@ import os
 # Paths
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DATA_DIR = os.path.join(ROOT_DIR, "data")
-RAW_DATA_PATH = os.path.join(DATA_DIR, "raw", "dataset_pm_scz_2013_2025.csv")
+#RAW_DATA_PATH = os.path.join(DATA_DIR, "raw", "dataset_pm_scz_2013_2025.csv")
+RAW_DATA_PATH = os.path.join(DATA_DIR, "raw", "dataset_pm_scz_2022_2025.csv")
 PROCESSED_DATA_PATH = os.path.join(DATA_DIR, "processed", "train_data.csv")
 MODELS_DIR = os.path.join(ROOT_DIR, "models")
 MODEL_PATH = os.path.join(MODELS_DIR, "xgboost_pm25.json")

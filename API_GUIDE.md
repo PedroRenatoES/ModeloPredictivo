@@ -66,22 +66,39 @@ POST /predict/{target}?horizons=1,12,24
 - `target` (path): pm2_5, pm10, ozone, nitrogen_dioxide
 - `horizons` (query, opcional): horizontes separados por comas (ej: "1,12,24")
 
-**Body (JSON):**
+**Body (JSON) - Lista de datos históricos (Recomendado: últimas 24h):**
 ```json
-{
-  "time": "2025-11-30T18:00:00",
-  "pm2_5": 15.5,
-  "pm10": 25.0,
-  "nitrogen_dioxide": 20.0,
-  "ozone": 45.0,
-  "temperature_2m": 25.0,
-  "relative_humidity_2m": 60,
-  "wind_speed_10m": 5.5,
-  "wind_direction_10m": 180,
-  "precipitation": 0.0,
-  "surface_pressure": 1013.0
-}
+[
+  {
+    "time": "2025-11-30T17:00:00",
+    "pm2_5": 14.2,
+    "pm10": 22.1,
+    "nitrogen_dioxide": 18.5,
+    "ozone": 40.2,
+    "temperature_2m": 24.5,
+    "relative_humidity_2m": 62.0,
+    "wind_speed_10m": 5.2,
+    "wind_direction_10m": 175.0,
+    "precipitation": 0.0,
+    "surface_pressure": 1012.5
+  },
+  {
+    "time": "2025-11-30T18:00:00",
+    "pm2_5": 15.5,
+    "pm10": 25.0,
+    "nitrogen_dioxide": 20.0,
+    "ozone": 45.0,
+    "temperature_2m": 25.0,
+    "relative_humidity_2m": 60.0,
+    "wind_speed_10m": 5.5,
+    "wind_direction_10m": 180.0,
+    "precipitation": 0.0,
+    "surface_pressure": 1013.0
+  }
+]
 ```
+
+**Nota:** El último elemento de la lista es el momento "actual" desde donde se hará la predicción. Los anteriores sirven para dar contexto (historia) al modelo.
 
 **Respuesta:**
 ```json

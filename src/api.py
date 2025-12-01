@@ -85,7 +85,38 @@ def get_available_targets():
 @app.post("/predict/{target}", response_model=PredictionResponse)
 def predict_target(
     target: str,
-    input_data: List[PredictionInput],
+    input_data: List[PredictionInput] = Body(
+        ...,
+        example=[
+            {
+                "time": "2025-07-01T11:00:00",
+                "pm2_5": 14.2,
+                "pm10": 22.1,
+                "nitrogen_dioxide": 18.5,
+                "ozone": 40.2,
+                "temperature_2m": 24.5,
+                "relative_humidity_2m": 62.0,
+                "wind_speed_10m": 5.2,
+                "wind_direction_10m": 175.0,
+                "precipitation": 0.0,
+                "surface_pressure": 1012.5
+            },
+            {
+                "time": "2025-07-01T12:00:00",
+                "pm2_5": 15.5,
+                "pm10": 25.0,
+                "nitrogen_dioxide": 20.0,
+                "ozone": 45.0,
+                "temperature_2m": 25.0,
+                "relative_humidity_2m": 60.0,
+                "wind_speed_10m": 5.5,
+                "wind_direction_10m": 180.0,
+                "precipitation": 0.0,
+                "surface_pressure": 1013.0
+            }
+        ],
+        description="List of historical data points (last 24h recommended) ending with current conditions"
+    ),
     horizons: Optional[str] = Query(None, description="Comma-separated horizons (e.g., '1,12,24')")
 ):
     """
@@ -203,7 +234,38 @@ def predict_target(
 
 @app.post("/predict")
 def predict_default(
-    input_data: List[PredictionInput],
+    input_data: List[PredictionInput] = Body(
+        ...,
+        example=[
+            {
+                "time": "2025-07-01T11:00:00",
+                "pm2_5": 14.2,
+                "pm10": 22.1,
+                "nitrogen_dioxide": 18.5,
+                "ozone": 40.2,
+                "temperature_2m": 24.5,
+                "relative_humidity_2m": 62.0,
+                "wind_speed_10m": 5.2,
+                "wind_direction_10m": 175.0,
+                "precipitation": 0.0,
+                "surface_pressure": 1012.5
+            },
+            {
+                "time": "2025-07-01T12:00:00",
+                "pm2_5": 15.5,
+                "pm10": 25.0,
+                "nitrogen_dioxide": 20.0,
+                "ozone": 45.0,
+                "temperature_2m": 25.0,
+                "relative_humidity_2m": 60.0,
+                "wind_speed_10m": 5.5,
+                "wind_direction_10m": 180.0,
+                "precipitation": 0.0,
+                "surface_pressure": 1013.0
+            }
+        ],
+        description="List of historical data points (last 24h recommended) ending with current conditions"
+    ),
     target: str = Query("pm2_5", description="Target variable to predict"),
     horizons: Optional[str] = Query(None, description="Comma-separated horizons")
 ):

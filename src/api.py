@@ -1,6 +1,6 @@
 import sys
 import os
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Body
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import List, Optional

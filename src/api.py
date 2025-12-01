@@ -24,10 +24,10 @@ app = FastAPI(
 class PredictionInput(BaseModel):
     """Input data for making predictions"""
     time: datetime
-    pm2_5: float
-    pm10: float
-    nitrogen_dioxide: float
-    ozone: float
+    pm2_5: Optional[float] = None
+    pm10: Optional[float] = None
+    nitrogen_dioxide: Optional[float] = None
+    ozone: Optional[float] = None
     temperature_2m: float
     relative_humidity_2m: float
     wind_speed_10m: float

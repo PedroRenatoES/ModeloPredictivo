@@ -11,6 +11,19 @@ build/
 .venv/
 venv/
 env/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+env/
 .env/
 ENV/
 
@@ -18,4 +31,4 @@ ENV/
 .vscode/
 
 # Model
-models/
+# models/

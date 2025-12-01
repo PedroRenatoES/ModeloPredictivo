@@ -85,7 +85,7 @@ def get_available_targets():
 @app.post("/predict/{target}", response_model=PredictionResponse)
 def predict_target(
     target: str,
-    input_data: PredictionInput,
+    input_data: List[PredictionInput],
     horizons: Optional[str] = Query(None, description="Comma-separated horizons (e.g., '1,12,24')")
 ):
     """
@@ -93,7 +93,7 @@ def predict_target(
     
     Args:
         target: Target pollutant to predict (pm2_5, pm10, ozone, nitrogen_dioxide)
-        input_data: Current air quality and meteorological conditions
+        input_data: List of historical data points (last 24h recommended) ending with current conditions
         horizons: Optional comma-separated list of forecast horizons in hours
     
     Returns:
@@ -107,6 +107,9 @@ def predict_target(
                 detail=f"Invalid target. Must be one of: {AVAILABLE_TARGETS}"
             )
         
+        if not input_data:
+            raise HTTPException(status_code=400, detail="Input list cannot be empty")
+
         # Parse horizons
         if horizons:
             try:
@@ -120,27 +123,38 @@ def predict_target(
             horizon_list = HORIZONS
         
         # Convert input to DataFrame
-        input_dict = input_data.model_dump()
-        df = pd.DataFrame([input_dict])
+        input_list = [item.model_dump() for item in input_data]
+        df = pd.DataFrame(input_list)
+        
+        # Ensure sorted by time
+        df['time'] = pd.to_datetime(df['time'])
+        df = df.sort_values('time').reset_index(drop=True)
         
         # Process features (without creating future targets since we're predicting)
+        # Passing the full history allows calculating rolling stats correctly
         df_processed = process_data(df, target_name=target, is_training=False)
+        
+        # We only care about predicting for the LAST timestamp provided (the "current" moment)
+        current_data_processed = df_processed.iloc[[-1]]
         
         # Get required features for this target
         required_features = get_features_for_target(target)
         
         # Verify all features are present
-        missing_features = [f for f in required_features if f not in df_processed.columns]
+        missing_features = [f for f in required_features if f not in current_data_processed.columns]
         if missing_features:
             raise HTTPException(
                 status_code=500,
                 detail=f"Missing features after processing: {missing_features}"
             )
         
-        X = df_processed[required_features]
+        X = current_data_processed[required_features]
         
         # Load models and make predictions
         predictions = {}
+        
+        # Get the time from the last data point
+        current_time = df.iloc[-1]['time']
         
         for h in horizon_list:
             model_path = os.path.join(MODELS_DIR, f"xgboost_{target}_{h}h.json")
@@ -159,7 +173,7 @@ def predict_target(
             
             # Predict
             pred_value = float(model.predict(X)[0])
-            pred_time = input_data.time + pd.Timedelta(hours=h)
+            pred_time = current_time + pd.Timedelta(hours=h)
             
             predictions[f"{h}h"] = {
                 "value": round(pred_value, 2),
@@ -177,7 +191,7 @@ def predict_target(
         
         return PredictionResponse(
             target=target,
-            input_time=input_data.time,
+            input_time=current_time,
             predictions=predictions,
             unit=units.get(target, "μg/m³")
         )
@@ -189,7 +203,7 @@ def predict_target(
 
 @app.post("/predict")
 def predict_default(
-    input_data: PredictionInput,
+    input_data: List[PredictionInput],
     target: str = Query("pm2_5", description="Target variable to predict"),
     horizons: Optional[str] = Query(None, description="Comma-separated horizons")
 ):

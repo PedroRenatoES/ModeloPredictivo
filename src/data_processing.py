@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import os
 from src.config import RAW_DATA_PATH, PROCESSED_DATA_PATH
 
 def load_data(path=RAW_DATA_PATH):
@@ -9,8 +10,17 @@ def load_data(path=RAW_DATA_PATH):
     df = df.sort_values("time").reset_index(drop=True)
     return df
 
-def process_data(df, is_training=True):
-    """Applies cleaning and feature engineering."""
+def process_data(df, target_name="pm2_5", is_training=True):
+    """Applies cleaning and feature engineering.
+    
+    Args:
+        df (pd.DataFrame): Input dataframe
+        target_name (str): Name of the target variable to predict (default: "pm2_5")
+        is_training (bool): Whether this is for training (creates future targets) or inference
+    
+    Returns:
+        pd.DataFrame: Processed dataframe with features and targets
+    """
     print("Processing data...")
     
     # 1. Handle Missing Values
@@ -33,17 +43,17 @@ def process_data(df, is_training=True):
     df["month_sin"] = np.sin(2 * np.pi * df["month"] / 12)
     df["month_cos"] = np.cos(2 * np.pi * df["month"] / 12)
     
-    # 4. Lag Features (Past values)
+    # 4. Lag Features (Past values) - DYNAMIC based on target
     # We want to predict t using t-1, t-24, etc.
-    df["pm2_5_lag_1"] = df["pm2_5"].shift(1)
-    df["pm2_5_lag_24"] = df["pm2_5"].shift(24)
+    df[f"{target_name}_lag_1"] = df[target_name].shift(1)
+    df[f"{target_name}_lag_24"] = df[target_name].shift(24)
     
-    # 5. Rolling Statistics
+    # 5. Rolling Statistics - DYNAMIC based on target
     # Rolling mean/std of the last 24 hours (excluding current)
     # shift(1) ensures we don't use current value in the rolling window calculation for the current step
     # min_periods=1 allows calculating mean even with partial history
-    df["pm2_5_rolling_mean_24"] = df["pm2_5"].shift(1).rolling(window=24, min_periods=1).mean()
-    df["pm2_5_rolling_std_24"] = df["pm2_5"].shift(1).rolling(window=24, min_periods=1).std()
+    df[f"{target_name}_rolling_mean_24"] = df[target_name].shift(1).rolling(window=24, min_periods=1).mean()
+    df[f"{target_name}_rolling_std_24"] = df[target_name].shift(1).rolling(window=24, min_periods=1).std()
     
     # 6. Multi-Horizon Targets (ONLY FOR TRAINING)
     if is_training:
@@ -63,8 +73,19 @@ def process_data(df, is_training=True):
     print(f"Data processed. Shape: {df.shape}")
     return df
 
-def save_data(df, path=PROCESSED_DATA_PATH):
-    """Saves processed data."""
+def save_data(df, path=PROCESSED_DATA_PATH, suffix=""):
+    """Saves processed data.
+    
+    Args:
+        df (pd.DataFrame): Processed dataframe to save
+        path (str): Base path for saving
+        suffix (str): Optional suffix to add to filename (e.g., "_ozone")
+    """
+    if suffix:
+        # Insert suffix before file extension
+        base, ext = os.path.splitext(path)
+        path = f"{base}{suffix}{ext}"
+    
     print(f"Saving processed data to {path}...")
     df.to_csv(path, index=False)
 

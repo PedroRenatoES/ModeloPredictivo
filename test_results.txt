@@ -1,0 +1,130 @@
+================================================================================
+API ENDPOINT TESTING RESULTS
+================================================================================
+
+[TEST 1] GET /metrics/pm2_5/r2
+--------------------------------------------------------------------------------
+Status Code: 200
+✓ SUCCESS
+  Target: pm2_5
+  Average R2: 0.7833
+  Models Count: 3
+
+Full Response:
+{
+  "target": "pm2_5",
+  "average_r2": 0.7833,
+  "models_count": 3
+}
+
+================================================================================
+[TEST 2] POST /predict/pm2_5/5-horizons
+--------------------------------------------------------------------------------
+Status Code: 200
+✓ SUCCESS
+  Target: pm2_5
+  Input Time: 2025-07-01T12:00:00
+  Unit: μg/m³
+
+  Predictions:
+    1h: 17.86 at 2025-07-01T13:00:00
+    12h: 27.2 at 2025-07-02T00:00:00
+    24h: 22.12 at 2025-07-02T12:00:00
+    72h: 14.64 at 2025-07-04T12:00:00
+    168h: 13.88 at 2025-07-08T12:00:00
+
+Full Response:
+{
+  "target": "pm2_5",
+  "input_time": "2025-07-01T12:00:00",
+  "predictions": {
+    "1h": {
+      "value": 17.86,
+      "predicted_time": "2025-07-01T13:00:00",
+      "horizon_hours": 1
+    },
+    "12h": {
+      "value": 27.2,
+      "predicted_time": "2025-07-02T00:00:00",
+      "horizon_hours": 12
+    },
+    "24h": {
+      "value": 22.12,
+      "predicted_time": "2025-07-02T12:00:00",
+      "horizon_hours": 24
+    },
+    "72h": {
+      "value": 14.64,
+      "predicted_time": "2025-07-04T12:00:00",
+      "horizon_hours": 72
+    },
+    "168h": {
+      "value": 13.88,
+      "predicted_time": "2025-07-08T12:00:00",
+      "horizon_hours": 168
+    }
+  },
+  "unit": "\u03bcg/m\u00b3"
+}
+
+================================================================================
+[TEST 3] POST /predict/pm2_5/risk - LOW RISK SCENARIO
+--------------------------------------------------------------------------------
+Input: pm2_5 = 15.5 μg/m³ (clean air)
+Status Code: 200
+✓ SUCCESS
+  Target: pm2_5
+  Predicted Value: 17.86 μg/m³
+  Risk Level: Low
+  Message: Air quality is good. Enjoy your outdoor activities.
+
+Full Response:
+{
+  "target": "pm2_5",
+  "predicted_value": 17.86,
+  "risk_level": "Low",
+  "unit": "\u03bcg/m\u00b3",
+  "message": "Air quality is good. Enjoy your outdoor activities."
+}
+
+================================================================================
+[TEST 4] POST /predict/pm2_5/risk - MEDIUM RISK SCENARIO
+--------------------------------------------------------------------------------
+Input: pm2_5 = 45.5 μg/m³ (moderate pollution)
+Status Code: 200
+✓ SUCCESS
+  Predicted Value: 58.8 μg/m³
+  Risk Level: High
+  Message: Everyone may begin to experience health effects; members of sensitive groups may experience more serious health effects.
+
+Full Response:
+{
+  "target": "pm2_5",
+  "predicted_value": 58.8,
+  "risk_level": "High",
+  "unit": "\u03bcg/m\u00b3",
+  "message": "Everyone may begin to experience health effects; members of sensitive groups may experience more serious health effects."
+}
+
+================================================================================
+[TEST 5] POST /predict/pm2_5/risk - HIGH RISK SCENARIO
+--------------------------------------------------------------------------------
+Input: pm2_5 = 75.5 μg/m³ (heavy pollution)
+Status Code: 200
+✓ SUCCESS
+  Predicted Value: 61.57 μg/m³
+  Risk Level: High
+  Message: Everyone may begin to experience health effects; members of sensitive groups may experience more serious health effects.
+
+Full Response:
+{
+  "target": "pm2_5",
+  "predicted_value": 61.57,
+  "risk_level": "High",
+  "unit": "\u03bcg/m\u00b3",
+  "message": "Everyone may begin to experience health effects; members of sensitive groups may experience more serious health effects."
+}
+
+================================================================================
+TESTING COMPLETE - ALL ENDPOINTS VERIFIED
+================================================================================

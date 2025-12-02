@@ -136,6 +136,13 @@ def train_model(target_name="pm2_5", horizons=None):
         model.save_model(model_path)
         print(f"Model saved to {model_path}")
 
+    # Save metrics to JSON for API usage
+    metrics_path = os.path.join(MODELS_DIR, f"metrics_{target_name}.json")
+    import json
+    with open(metrics_path, 'w') as f:
+        json.dump(results, f, indent=4)
+    print(f"Metrics saved to {metrics_path}")
+
     # Print Final Report
     print("\n" + "="*100)
     print(f"  MÉTRICAS EN TEST SET - {target_name.upper()} (DATOS NO VISTOS)")

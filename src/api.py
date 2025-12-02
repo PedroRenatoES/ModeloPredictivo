@@ -8,6 +8,7 @@ import uvicorn
 import pandas as pd
 import xgboost as xgb
 import numpy as np
+import json
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -16,8 +17,8 @@ from src.config import MODELS_DIR, AVAILABLE_TARGETS, HORIZONS, get_features_for
 from src.data_processing import process_data
 
 app = FastAPI(
-    title="AirQuality Multi-Target Prediction API",
-    description="API for predicting multiple air quality pollutants (PM2.5, PM10, Ozone, NO₂) using XGBoost.",
+    title="API de Predicción de Calidad del Aire Multi-Target",
+    description="API para predecir múltiples contaminantes atmosféricos (PM2.5, PM10, Ozono, NO₂) usando XGBoost.",
     version="2.0.0"
 )
 
@@ -59,30 +60,38 @@ class PredictionResponse(BaseModel):
     predictions: dict
     unit: str
 
+class RiskResponse(BaseModel):
+    """Response containing prediction and risk classification"""
+    target: str
+    predicted_value: float
+    risk_level: str
+    unit: str
+    message: str
+
 @app.get("/health")
 def health_check():
-    """Health check endpoint"""
+    """Endpoint de verificación de estado del servicio"""
     return {
-        "status": "ok", 
-        "service": "AirQuality Multi-Target API",
-        "available_targets": AVAILABLE_TARGETS,
-        "available_horizons": HORIZONS
+        "estado": "ok", 
+        "servicio": "API de Predicción de Calidad del Aire Multi-Target",
+        "targets_disponibles": AVAILABLE_TARGETS,
+        "horizontes_disponibles": HORIZONS
     }
 
 @app.get("/targets")
 def get_available_targets():
-    """Get list of available prediction targets"""
+    """Obtener lista de contaminantes disponibles para predicción"""
     return {
-        "available_targets": AVAILABLE_TARGETS,
-        "descriptions": {
-            "pm2_5": "Fine Particulate Matter (≤2.5 μm)",
-            "pm10": "Coarse Particulate Matter (≤10 μm)",
-            "ozone": "Ground-level Ozone (O₃)",
-            "nitrogen_dioxide": "Nitrogen Dioxide (NO₂)"
+        "targets_disponibles": AVAILABLE_TARGETS,
+        "descripciones": {
+            "pm2_5": "Material Particulado Fino (≤2.5 μm)",
+            "pm10": "Material Particulado Grueso (≤10 μm)",
+            "ozone": "Ozono Troposférico (O₃)",
+            "nitrogen_dioxide": "Dióxido de Nitrógeno (NO₂)"
         }
     }
 
-@app.post("/predict/{target}", response_model=PredictionResponse)
+@app.post("/predict/{target}")
 def predict_target(
     target: str,
     input_data: List[PredictionInput] = Body(
@@ -135,11 +144,11 @@ def predict_target(
         if target not in AVAILABLE_TARGETS:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Invalid target. Must be one of: {AVAILABLE_TARGETS}"
+                detail=f"Target inválido. Debe ser uno de: {AVAILABLE_TARGETS}"
             )
         
         if not input_data:
-            raise HTTPException(status_code=400, detail="Input list cannot be empty")
+            raise HTTPException(status_code=400, detail="La lista de datos de entrada no puede estar vacía")
 
         # Parse horizons
         if horizons:
@@ -148,7 +157,7 @@ def predict_target(
             except ValueError:
                 raise HTTPException(
                     status_code=400,
-                    detail="Horizons must be comma-separated integers (e.g., '1,12,24')"
+                    detail="Los horizontes deben ser enteros separados por comas (ej: '1,12,24')"
                 )
         else:
             horizon_list = HORIZONS
@@ -176,7 +185,7 @@ def predict_target(
         if missing_features:
             raise HTTPException(
                 status_code=500,
-                detail=f"Missing features after processing: {missing_features}"
+                detail=f"Características faltantes después del procesamiento: {missing_features}"
             )
         
         X = current_data_processed[required_features]
@@ -192,9 +201,9 @@ def predict_target(
             
             if not os.path.exists(model_path):
                 predictions[f"{h}h"] = {
-                    "value": None,
-                    "error": "Model not found. Please train model first.",
-                    "predicted_time": None
+                    "valor": None,
+                    "error": "Modelo no encontrado. Por favor entrene el modelo primero.",
+                    "tiempo_predicho": None
                 }
                 continue
             
@@ -207,9 +216,9 @@ def predict_target(
             pred_time = current_time + pd.Timedelta(hours=h)
             
             predictions[f"{h}h"] = {
-                "value": round(pred_value, 2),
-                "predicted_time": pred_time.isoformat(),
-                "horizon_hours": h
+                "valor": round(pred_value, 2),
+                "tiempo_predicho": pred_time.isoformat(),
+                "horas_horizonte": h
             }
         
         # Determine unit based on target
@@ -220,17 +229,102 @@ def predict_target(
             "nitrogen_dioxide": "μg/m³"
         }
         
-        return PredictionResponse(
-            target=target,
-            input_time=current_time,
-            predictions=predictions,
-            unit=units.get(target, "μg/m³")
-        )
+        return {
+            "target": target,
+            "tiempo_entrada": current_time.isoformat(),
+            "predicciones": predictions,
+            "unidad": units.get(target, "μg/m³")
+        }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error en la predicción: {str(e)}")
+
+@app.get("/metrics/{target}/r2")
+def get_average_r2(target: str):
+    """
+    Obtener el puntaje R2 promedio de los modelos entrenados para un target específico.
+    """
+    if target not in AVAILABLE_TARGETS:
+        raise HTTPException(status_code=400, detail=f"Target inválido. Debe ser uno de: {AVAILABLE_TARGETS}")
+    
+    metrics_path = os.path.join(MODELS_DIR, f"metrics_{target}.json")
+    
+    if not os.path.exists(metrics_path):
+        raise HTTPException(status_code=404, detail=f"Métricas no encontradas para {target}. Por favor entrene el modelo primero.")
+        
+    try:
+        with open(metrics_path, 'r') as f:
+            metrics = json.load(f)
+        
+        if not metrics:
+             raise HTTPException(status_code=404, detail="No hay datos de métricas disponibles.")
+
+        r2_scores = [m["R2"] for m in metrics]
+        avg_r2 = sum(r2_scores) / len(r2_scores)
+        
+        return {
+            "target": target,
+            "r2_promedio": round(avg_r2, 4),
+            "cantidad_modelos": len(metrics)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al leer métricas: {str(e)}")
+
+@app.post("/predict/{target}/5-horizons")
+def predict_5_horizons(
+    target: str,
+    input_data: List[PredictionInput] = Body(..., description="Historical data")
+):
+    """
+    Realizar predicciones para 5 horizontes específicos: 1, 12, 24, 72, 168 horas.
+    """
+    # Force the 5 horizons
+    five_horizons = "1,12,24,72,168"
+    return predict_target(target=target, input_data=input_data, horizons=five_horizons)
+
+@app.post("/predict/{target}/risk")
+def predict_risk(
+    target: str,
+    input_data: List[PredictionInput] = Body(..., description="Historical data")
+):
+    """
+    Predecir el valor a 1 hora y clasificar el nivel de riesgo.
+    Niveles de Riesgo (Ejemplo para PM2.5/PM10):
+    - Bajo: < 35
+    - Medio: 35 - 55
+    - Alto: > 55
+    """
+    # Get 1h prediction
+    pred_response = predict_target(target=target, input_data=input_data, horizons="1")
+    
+    # Extract value
+    try:
+        pred_value = pred_response["predicciones"]["1h"]["valor"]
+    except KeyError:
+         raise HTTPException(status_code=500, detail="No se pudo generar la predicción a 1h para evaluación de riesgo")
+         
+    if pred_value is None:
+        raise HTTPException(status_code=500, detail="El modelo retornó None para la predicción")
+
+    # Classify Risk (Simple Switch/If-Else)
+    # Note: These thresholds are examples. Real thresholds depend on the pollutant and regulations.
+    if pred_value < 35:
+        risk = "Bajo"
+        msg = "La calidad del aire es buena. Disfrute de sus actividades al aire libre."
+    elif 35 <= pred_value < 55:
+        risk = "Medio"
+        msg = "Los grupos sensibles pueden experimentar efectos en la salud."
+    else: # >= 55
+        risk = "Alto"
+        msg = "Todos pueden comenzar a experimentar efectos en la salud; los grupos sensibles pueden experimentar efectos más graves."
+        
+    return {
+        "target": target,
+        "valor_predicho": pred_value,
+        "nivel_riesgo": risk,
+        "unidad": pred_response["unidad"],
+        "mensaje": msg
+    }
 
 @app.post("/predict")
 def predict_default(
@@ -270,8 +364,8 @@ def predict_default(
     horizons: Optional[str] = Query(None, description="Comma-separated horizons")
 ):
     """
-    Backward-compatible prediction endpoint.
-    Defaults to PM2.5 prediction.
+    Endpoint de predicción retrocompatible.
+    Por defecto predice PM2.5.
     """
     return predict_target(target=target, input_data=input_data, horizons=horizons)
 

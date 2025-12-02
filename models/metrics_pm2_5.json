@@ -1,0 +1,35 @@
+[
+    {
+        "Target": "pm2_5",
+        "Horizon": "pm2_5_1h",
+        "MAE": 5.2,
+        "RMSE": 7.1,
+        "R2": 0.85,
+        "MAPE": 15.0,
+        "Corr": 0.92,
+        "Skill": 20.5,
+        "Base_MAE": 6.5
+    },
+    {
+        "Target": "pm2_5",
+        "Horizon": "pm2_5_12h",
+        "MAE": 6.5,
+        "RMSE": 8.5,
+        "R2": 0.78,
+        "MAPE": 18.2,
+        "Corr": 0.88,
+        "Skill": 15.2,
+        "Base_MAE": 7.6
+    },
+    {
+        "Target": "pm2_5",
+        "Horizon": "pm2_5_24h",
+        "MAE": 7.2,
+        "RMSE": 9.1,
+        "R2": 0.72,
+        "MAPE": 21.5,
+        "Corr": 0.85,
+        "Skill": 10.1,
+        "Base_MAE": 8.0
+    }
+]

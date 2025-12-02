@@ -32,3 +32,6 @@ ENV/
 
 # Model
 # models/
+
+# Logs
+.log

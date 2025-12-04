@@ -1,6 +1,7 @@
 import sys
 import os
 from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import List, Optional
@@ -20,6 +21,15 @@ app = FastAPI(
     title="API de Predicción de Calidad del Aire Multi-Target",
     description="API para predecir múltiples contaminantes atmosféricos (PM2.5, PM10, Ozono, NO₂) usando XGBoost.",
     version="2.0.0"
+)
+
+# Configuración de CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite todas las orígenes
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos los métodos
+    allow_headers=["*"],  # Permite todos los headers
 )
 
 class PredictionInput(BaseModel):

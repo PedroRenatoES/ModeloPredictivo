@@ -448,6 +448,58 @@ def predict_ica(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al calcular ICA: {str(e)}")
 
+@app.post("/predict/{target}/ica/estimated")
+def predict_ica_estimated(
+    target: str,
+    input_data: List[PredictionInput] = Body(...),
+    horizons: str = Query("1", description="Horizonte a evaluar (ej. 12)")
+):
+    """
+    Estima el ICA futuro combinando la predicción del target con 
+    los valores actuales de los otros contaminantes.
+    """
+    try:
+        # 1. Obtener predicción del target para el horizonte solicitado
+        pred_response = predict_target(target=target, input_data=input_data, horizons=horizons)
+        
+        horizon_key = f"{horizons}h"
+        if horizon_key not in pred_response["predicciones"]:
+             raise HTTPException(status_code=404, detail=f"No se pudo predecir {target} a {horizons}h")
+             
+        pred_value = pred_response["predicciones"][horizon_key]["valor"]
+        
+        # 2. Obtener valores actuales (último dato) de los OTROS contaminantes
+        last_data = input_data[-1]
+        pollutants = ["pm2_5", "pm10", "ozone", "nitrogen_dioxide"]
+        
+        ica_values = []
+        
+        # Calcular ICA para el target PREDICHO
+        if pred_value is not None:
+            ica_values.append(calculate_pollutant_ica(target, pred_value))
+            
+        # Calcular ICA para los otros contaminantes (valores ACTUALES)
+        for p in pollutants:
+            if p == target: continue # Ya lo calculamos con la predicción
+            
+            # Mapear nombres de campos del modelo Pydantic a strings
+            val = None
+            if p == "pm2_5": val = last_data.pm2_5
+            elif p == "pm10": val = last_data.pm10
+            elif p == "nitrogen_dioxide": val = last_data.nitrogen_dioxide
+            elif p == "ozone": val = last_data.ozone
+            
+            if val is not None:
+                ica_values.append(calculate_pollutant_ica(p, val))
+        
+        if not ica_values:
+            return 0
+            
+        return max(ica_values) # El peor caso define el ICA
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error estimando ICA: {str(e)}")
+
 @app.post("/predict")
 def predict_default(
     input_data: List[PredictionInput] = Body(

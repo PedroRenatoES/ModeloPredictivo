@@ -332,6 +332,112 @@ def predict_risk(
         "mensaje": msg
     }
 
+def calculate_pollutant_ica(pollutant: str, value: float) -> int:
+    """
+    Calcula el ICA para un contaminante específico según la Orden TEC/351/2019.
+    
+    Args:
+        pollutant: Nombre del contaminante (pm2_5, pm10, ozone, nitrogen_dioxide)
+        value: Concentración del contaminante en μg/m³
+    
+    Returns:
+        int: Índice ICA de 1 (Buena) a 6 (Extremadamente desfavorable)
+    
+    Rangos basados en la regulación española (Orden TEC/351/2019):
+    - 1: Buena
+    - 2: Razonablemente buena  
+    - 3: Regular
+    - 4: Desfavorable
+    - 5: Muy desfavorable
+    - 6: Extremadamente desfavorable
+    """
+    # Thresholds según la Orden TEC/351/2019
+    thresholds = {
+        "pm2_5": [10, 20, 25, 50, 75, float('inf')],  # μg/m³
+        "pm10": [20, 40, 50, 100, 150, float('inf')],  # μg/m³
+        "ozone": [50, 100, 130, 240, 380, float('inf')],  # μg/m³
+        "nitrogen_dioxide": [40, 90, 120, 230, 340, float('inf')]  # μg/m³
+    }
+    
+    if pollutant not in thresholds:
+        return 1  # Default to "Buena" if pollutant not recognized
+    
+    limits = thresholds[pollutant]
+    
+    # Determinar categoría ICA
+    for ica_level, threshold in enumerate(limits, start=1):
+        if value < threshold:
+            return ica_level
+    
+    return 6  # Extremadamente desfavorable
+
+@app.post("/predict/ica")
+def predict_ica(
+    input_data: List[PredictionInput] = Body(
+        ...,
+        description="List of historical data points (last 24h recommended) ending with current conditions"
+    )
+):
+    """
+    Calcula el Índice de Calidad del Aire (ICA) usando predicciones a 1 hora
+    de todos los contaminantes disponibles (PM2.5, PM10, Ozono, NO₂).
+    
+    El ICA se calcula según la Orden TEC/351/2019 española, tomando el peor
+    valor entre todos los contaminantes medidos.
+    
+    Args:
+        input_data: Lista de datos históricos (últimas 24h recomendadas) terminando con condiciones actuales
+    
+    Returns:
+        int: Valor numérico del ICA de 1 a 6
+        - 1: Buena
+        - 2: Razonablemente buena
+        - 3: Regular
+        - 4: Desfavorable
+        - 5: Muy desfavorable
+        - 6: Extremadamente desfavorable
+    """
+    try:
+        if not input_data:
+            raise HTTPException(status_code=400, detail="La lista de datos de entrada no puede estar vacía")
+        
+        # Obtener predicciones a 1 hora para cada contaminante
+        pollutants_to_check = ["pm2_5", "pm10", "ozone", "nitrogen_dioxide"]
+        ica_values = []
+        
+        for pollutant in pollutants_to_check:
+            try:
+                # Obtener predicción a 1 hora
+                pred_response = predict_target(target=pollutant, input_data=input_data, horizons="1")
+                
+                # Extraer el valor predicho
+                pred_value = pred_response["predicciones"]["1h"]["valor"]
+                
+                if pred_value is not None:
+                    # Calcular ICA para este contaminante
+                    ica = calculate_pollutant_ica(pollutant, pred_value)
+                    ica_values.append(ica)
+                    
+            except Exception as e:
+                # Si un modelo no está disponible, continuamos con los demás
+                continue
+        
+        if not ica_values:
+            raise HTTPException(
+                status_code=500,
+                detail="No se pudo calcular el ICA. Asegúrese de que al menos un modelo esté entrenado."
+            )
+        
+        # El ICA final es el peor valor (máximo) entre todos los contaminantes
+        final_ica = max(ica_values)
+        
+        return final_ica
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al calcular ICA: {str(e)}")
+
 @app.post("/predict")
 def predict_default(
     input_data: List[PredictionInput] = Body(

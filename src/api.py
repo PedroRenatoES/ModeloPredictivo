@@ -166,6 +166,12 @@ def predict_target(
         input_list = [item.model_dump() for item in input_data]
         df = pd.DataFrame(input_list)
         
+        # Convert pollutant columns to float (handles None/null properly)
+        pollutant_cols = ['pm2_5', 'pm10', 'nitrogen_dioxide', 'ozone']
+        for col in pollutant_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
         # Ensure sorted by time
         df['time'] = pd.to_datetime(df['time'])
         df = df.sort_values('time').reset_index(drop=True)
